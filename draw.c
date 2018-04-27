@@ -8,6 +8,19 @@
 #include "math.h"
 #include "gmath.h"
 
+/*======== void scanline_convert() ==========
+  Inputs: struct matrix *points
+          int i
+          screen s
+          zbuffer zb
+  Returns:
+  Fills in polygon i by drawing consecutive horizontal (or vertical) lines.
+  Color should be set differently for each polygon.
+  ====================*/
+void scanline_convert( struct matrix *points, int i, screen s, zbuffer zb ) {
+
+}
+
 /*======== void add_polygon() ==========
   Inputs:   struct matrix *surfaces
   double x0
@@ -43,7 +56,7 @@ void add_polygon( struct matrix *polygons,
   lines connecting each points to create bounding
   triangles
   ====================*/
-void draw_polygons( struct matrix *polygons, screen s, color c ) {
+void draw_polygons(struct matrix *polygons, screen s, zbuffer zb, color c ) {
   if ( polygons->lastcol < 3 ) {
     printf("Need at least 3 points to draw a polygon!\n");
     return;
@@ -60,19 +73,25 @@ void draw_polygons( struct matrix *polygons, screen s, color c ) {
 
       draw_line( polygons->m[0][point],
                  polygons->m[1][point],
+                 polygons->m[2][point],
                  polygons->m[0][point+1],
                  polygons->m[1][point+1],
-                 s, c);
+                 polygons->m[2][point+1],
+                 s, zb, c);
       draw_line( polygons->m[0][point+2],
                  polygons->m[1][point+2],
+                 polygons->m[2][point+2],
                  polygons->m[0][point+1],
                  polygons->m[1][point+1],
-                 s, c);
+                 polygons->m[2][point+1],
+                 s, zb, c);
       draw_line( polygons->m[0][point],
                  polygons->m[1][point],
+                 polygons->m[2][point],
                  polygons->m[0][point+2],
                  polygons->m[1][point+2],
-                 s, c);
+                 polygons->m[2][point+2],
+                 s, zb, c);
     }
   }
 }
@@ -460,33 +479,35 @@ void add_edge( struct matrix * points,
   Go through points 2 at a time and call draw_line to add that line
   to the screen
   ====================*/
-void draw_lines( struct matrix * points, screen s, color c) {
+void draw_lines( struct matrix * points, screen s, zbuffer zb, color c) {
 
   if ( points->lastcol < 2 ) {
     printf("Need at least 2 points to draw a line!\n");
     return;
   }
-
   int point;
   for (point=0; point < points->lastcol-1; point+=2)
     draw_line( points->m[0][point],
                points->m[1][point],
+               points->m[2][point],
                points->m[0][point+1],
                points->m[1][point+1],
-               s, c);
+               points->m[2][point+1],
+               s, zb, c);
 }// end draw_lines
 
 
 
 
+void draw_line(int x0, int y0, double z0,
+               int x1, int y1, double z1,
+               screen s, zbuffer zb, color c) {
 
-
-
-
-
-void draw_line(int x0, int y0, int x1, int y1, screen s, color c) {
 
   int x, y, d, A, B;
+  int dy_east, dy_northeast, dx_east, dx_northeast, d_east, d_northeast;
+  int loop_start, loop_end;
+
   //swap points if going right -> left
   int xt, yt;
   if (x0 > x1) {
@@ -494,6 +515,7 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c) {
     yt = y0;
     x0 = x1;
     y0 = y1;
+    z0 = z1;
     x1 = xt;
     y1 = yt;
   }
@@ -502,77 +524,67 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c) {
   y = y0;
   A = 2 * (y1 - y0);
   B = -2 * (x1 - x0);
-
+  int wide = 0;
+  int tall = 0;
   //octants 1 and 8
-  if ( abs(x1 - x0) >= abs(y1 - y0) ) {
-
-    //octant 1
-    if ( A > 0 ) {
-
+  if ( abs(x1 - x0) >= abs(y1 - y0) ) { //octant 1/8
+    wide = 1;
+    loop_start = x;
+    loop_end = x1;
+    dx_east = dx_northeast = 1;
+    dy_east = 0;
+    d_east = A;
+    if ( A > 0 ) { //octant 1
       d = A + B/2;
-      while ( x < x1 ) {
-        plot( s, c, x, y );
-        if ( d > 0 ) {
-          y+= 1;
-          d+= B;
-        }
-        x++;
-        d+= A;
-      } //end octant 1 while
-      plot( s, c, x1, y1 );
-    } //end octant 1
-
-    //octant 8
-    else {
+      dy_northeast = 1;
+      d_northeast = A + B;
+    }
+    else { //octant 8
       d = A - B/2;
-
-      while ( x < x1 ) {
-        //printf("(%d, %d)\n", x, y);
-        plot( s, c, x, y );
-        if ( d < 0 ) {
-          y-= 1;
-          d-= B;
-        }
-        x++;
-        d+= A;
-      } //end octant 8 while
-      plot( s, c, x1, y1 );
-    } //end octant 8
-  }//end octants 1 and 8
-
-  //octants 2 and 7
-  else {
-
-    //octant 2
-    if ( A > 0 ) {
+      dy_northeast = -1;
+      d_northeast = A - B;
+    }
+  }//end octant 1/8
+  else { //octant 2/7
+    tall = 1;
+    dx_east = 0;
+    dx_northeast = 1;
+    if ( A > 0 ) {     //octant 2
       d = A/2 + B;
-
-      while ( y < y1 ) {
-        plot( s, c, x, y );
-        if ( d < 0 ) {
-          x+= 1;
-          d+= A;
-        }
-        y++;
-        d+= B;
-      } //end octant 2 while
-      plot( s, c, x1, y1 );
-    } //end octant 2
-
-    //octant 7
-    else {
+      dy_east = dy_northeast = 1;
+      d_northeast = A + B;
+      d_east = B;
+      loop_start = y;
+      loop_end = y1;
+    }
+    else {     //octant 7
       d = A/2 - B;
+      dy_east = dy_northeast = -1;
+      d_northeast = A - B;
+      d_east = -1 * B;
+      loop_start = y1;
+      loop_end = y;
+    }
+  }
 
-      while ( y > y1 ) {
-        plot( s, c, x, y );
-        if ( d > 0 ) {
-          x+= 1;
-          d+= A;
-        }
-        y--;
-        d-= B;
-      } //end octant 7 while
-      plot( s, c, x1, y1 );
-    } //end octant 7
-  }//end octants 2 and 7
+  while ( loop_start < loop_end ) {
+
+    plot( s, zb, c, x, y, 0);
+    if ( (wide && ((A > 0 && d > 0) ||
+                   (A < 0 && d < 0)))
+         ||
+         (tall && ((A > 0 && d < 0 ) ||
+                   (A < 0 && d > 0) ))) {
+      y+= dy_northeast;
+      d+= d_northeast;
+      x+= dx_northeast;
+    }
+    else {
+      x+= dx_east;
+      y+= dy_east;
+      d+= d_east;
+    }
+    loop_start++;
+  } //end drawing loop
+  plot( s, zb, c, x1, y1, 0 );
 } //end draw_line

@@ -7,6 +7,7 @@ for red, green and blue respectively
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "ml6.h"
 #include "display.h"
@@ -14,9 +15,11 @@ for red, green and blue respectively
 
 /*======== void plot() ==========
 Inputs:   screen s
+         sbuffer zb
          color c
          int x
          int y
+         double z
 Returns:
 Sets the color at pixel x, y to the color represented by c
 Note that s[0][0] will be the upper left hand corner
@@ -24,10 +27,8 @@ of the screen.
 If you wish to change this behavior, you can change the indicies
 of s that get set. For example, using s[x][YRES-1-y] will have
 pixel 0, 0 located at the lower left corner of the screen
-02/12/10 09:09:00
-jdyrlandweaver
 ====================*/
-void plot( screen s, color c, int x, int y) {
+void plot(screen s, zbuffer zb, color c, int x, int y, double z) {
   int newy = YRES - 1 - y;
   if ( x >= 0 && x < XRES && newy >=0 && newy < YRES )
     s[x][newy] = c;
@@ -37,8 +38,6 @@ void plot( screen s, color c, int x, int y) {
 Inputs:   screen s
 Returns:
 Sets every color in screen s to black
-02/12/10 09:13:40
-jdyrlandweaver
 ====================*/
 void clear_screen( screen s ) {
 
@@ -58,14 +57,26 @@ void clear_screen( screen s ) {
       s[x][y] = c;
 }
 
+/*======== void clear_zbuffer() ==========
+Inputs:   zbuffer
+Returns:
+Sets all entries in the zbufffer to LONG_MIN
+====================*/
+void clear_zbuffer( zbuffer zb ) {
+
+  int x, y;
+
+  for ( y=0; y < YRES; y++ )
+    for ( x=0; x < XRES; x++)
+      zb[x][y] = LONG_MIN;
+}
+
 /*======== void save_ppm() ==========
 Inputs:   screen s
          char *file
 Returns:
 Saves screen s as a valid ppm file using the
 settings in ml6.h
-02/12/10 09:14:07
-jdyrlandweaver
 ====================*/
 void save_ppm( screen s, char *file) {
 
@@ -92,8 +103,6 @@ by file.
 If the extension for file is an image format supported
 by the "convert" command, the image will be saved in
 that format.
-02/12/10 09:14:46
-jdyrlandweaver
 ====================*/
 void save_extension( screen s, char *file) {
 
@@ -119,8 +128,6 @@ void save_extension( screen s, char *file) {
 Inputs:   screen s
 Returns:
 Will display the screen s on your monitor
-02/12/10 09:16:30
-jdyrlandweaver
 ====================*/
 void display( screen s) {
 
